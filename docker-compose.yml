@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:18
+    restart: on-failure # Le conteneur ne redémarre qu’en cas d’erreur.
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD} # Mot de passe user psql
+      - POSTGRES_USER=${POSTGRES_USER} # Nom utilisateur psql
+      - POSTGRES_DB=${POSTGRES_DB} # Nom base de données
+
+  adminer:
+    image: adminer
+    restart: on-failure
+    ports:
+      - ${ADMINER_PORT}
+    depends_on:
+      # `depends_on` indique à Docker d’attendre que le service db soit démarré,
+      # mais cela n’établit pas de connexion entre les services.
+      - db
+
+  backend:
+    restart: on-failure
+    build:
+      context: backend # Indique le dossier dans lequel trouver le Dockerfile
+    volumes:
+      - ./backend:/app # Bind des fichiers locaux et ceux du conteneur
+      - /app/node_modules # Exclusion du bind des node_modules locaux et ceux du conteneur
+    environment:
+      - test=${BACKEND_DEMO}
+    ports:
+      - ${BACKEND_PORT}
+
+  frontend:
+    restart: on-failure
+    build:
+      context: frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - test=${FRONTEND_DEMO}
+    ports:
+      - ${FRONTEND_PORT}

@@ -1,0 +1,25 @@
+# Environment
+.env.dev
+.env.test
+.env.prod
+
+# App
+node_modules/
+public/css/*
+!public/css/.gitkeep
+public/js/*
+!public/js/.gitkeep
+
+# Test
+coverage/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
