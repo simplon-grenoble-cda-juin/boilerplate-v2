@@ -1,22 +1,41 @@
 import { Router } from "express";
-import { AuthController } from "../controllers/AuthController";
+import { requireAuth } from "@src/middlewares/requireAuth";
+import { validateRequest } from "@src/middlewares/validateRequest";
+import { AuthController } from "@src/controllers/AuthController";
 
 export const authRouter = Router();
 
-// Signup endpoint 
-authRouter.post("/signup", (req, res) => {
+// Signup endpoint
+authRouter.post("/signup", validateRequest, (req, res) => {
   const controller = new AuthController(req, res);
   controller.signUp();
 });
 
 // Signin endpoint
-authRouter.post("/signin", (req, res) => {
+authRouter.post("/signin", validateRequest, (req, res) => {
   const controller = new AuthController(req, res);
   controller.signIn();
 });
 
-// Profil endpoint
-authRouter.get("/me", (req, res) => {
+// Logout endpoint
+authRouter.get("/logout", requireAuth, (req, res) => {
   const controller = new AuthController(req, res);
-  controller.profil();
+  controller.logOut();
 });
+
+// Profile endpoint
+authRouter.get("/profile", requireAuth, (req, res) => {
+  const controller = new AuthController(req, res);
+  controller.profile();
+});
+
+// Password update endpoint
+authRouter.patch(
+  "/password-update",
+  validateRequest,
+  requireAuth,
+  (req, res) => {
+    const controller = new AuthController(req, res);
+    controller.passwordUpdate();
+  }
+);

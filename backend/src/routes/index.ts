@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { authRouter } from "./auth";
-import { globalsRouter } from "./globals";
+import { teamRouter } from "./team";
 
 const router = Router();
 
-router.use(authRouter);
-router.use(globalsRouter);
+router.use("/auth", authRouter);
+router.use("/teams", teamRouter);
 
 export default router;
