@@ -9,6 +9,7 @@ public/css/*
 !public/css/.gitkeep
 public/js/*
 !public/js/.gitkeep
+dist/
 
 # Test
 coverage/

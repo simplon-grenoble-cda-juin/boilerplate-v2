@@ -34,7 +34,7 @@ Consultez le `package.json`, qui définit les commandes de démarrage du projet 
 ```json
 {
   "scripts": {
-    "start": "NODE_ENV=prod tsx index.ts", // démarre l'environnement de production
+    "start": "NODE_ENV=production tsx index.ts", // démarre l'environnement de production
     "dev": "NODE_ENV=dev tsx watch index.ts", // démarre l'environnement de développement
     "test": "NODE_ENV=test tsx watch index.ts", // démarre l'environnement de test
     ...
@@ -49,7 +49,7 @@ Créez le fichier d’environnement correspondant :
 ```bash
 cp .env.example .env.dev  # pour un environnement de développement
 cp .env.example .env.test # pour un environnement de test
-cp .env.example .env.prod # pour un environnement de production
+cp .env.example .env.production # pour un environnement de production
 ```
 
 ## La base de données

@@ -3,30 +3,28 @@ import path from "node:path";
 import { Client } from "pg";
 import dotenv from "dotenv";
 
-dotenv.config({ path: ".env.test" });
+const envFile = `.env.${process.env.NODE_ENV || "dev"}`;
+dotenv.config({ path: envFile });
 
 const run = async () => {
   const client = new Client({
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
     host: process.env.PGHOST,
-    port: process.env.PGPORT ? parseInt(process.env.PGPORT, 10) : undefined,
     database: process.env.PGDATABASE,
   });
 
-  const schemaSQL = fs.readFileSync(
-    path.resolve("scripts/database_schema.sql"),
+  const seedSQL = fs.readFileSync(
+    path.resolve("scripts/database_seeds.sql"),
     "utf8"
   );
 
   await client.connect();
 
   try {
-    await client.query("DROP SCHEMA public CASCADE");
-    await client.query("CREATE SCHEMA public");
-    await client.query(schemaSQL);
+    await client.query(seedSQL);
 
-    console.log("Schéma chargé pour la base de tests");
+    console.log(`Base de données de ${process.env.NODE_ENV || "dev"} peuplée`);
   } finally {
     await client.end();
   }
