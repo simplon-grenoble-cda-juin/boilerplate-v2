@@ -35,8 +35,6 @@ cp .env.example .env.prod # pour un environnement de production
 
 ## Démarrage
 
-Si vos environnements frontend et backend sont correctement configurés, vous pouvez lancer l’ensemble des conteneurs :
-
 ```bash
 docker compose --env-file .env.dev up --build # démarre l'environnement de développement
 docker compose --env-file .env.test up --build # démarre l'environnement de test
@@ -44,9 +42,6 @@ docker compose --env-file .env.prod up --build # démarre l'environnement de pro
 ```
 
 ### 📚 Documentations disponibles
-
-- [Les environnements](https://github.com/simplon-grenoble-cda-juin/docker-compose/blob/master/_docs/environnements.md)  
-  → Explication de la gestion des environnements
 
 - [Les cookies](https://github.com/simplon-grenoble-cda-juin/docker-compose/blob/master/_docs/cookies.md)  
   → Explication de la gestion des cookies dans les tests et l’authentification

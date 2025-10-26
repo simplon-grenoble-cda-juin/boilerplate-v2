@@ -27,8 +27,6 @@ npm install
 
 ## L'environnement
 
-Il est nécessaire de fournir les variables d’environnement via un fichier `.env`.
-
 Consultez le `package.json`, qui définit les commandes de démarrage du projet selon l’environnement souhaité.
 
 ```json
@@ -43,14 +41,6 @@ Consultez le `package.json`, qui définit les commandes de démarrage du projet 
   "dependencies": {...},
   "devDependencies": {...}
 }
-```
-
-Créez le fichier d’environnement correspondant :
-
-```bash
-cp .env.example .env.dev  # pour un environnement de développement
-cp .env.example .env.test # pour un environnement de test
-cp .env.example .env.prod # pour un environnement de production
 ```
 
 ## Informations
