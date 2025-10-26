@@ -1,34 +1,33 @@
-import { Controller } from "../libs/Controller";
-import Token from "../modeles/Token";
-import User from "../modeles/User";
-import { TokenRepository } from "../repositories/TokenRepository";
-import { UserRepository } from "../repositories/UserRepository";
-import { AuthService } from "../services/AuthService";
 import argon2 from "argon2";
+import { Controller } from "@src/libs/Controller";
+import Token from "@src/modeles/Token";
+import User from "@src/modeles/User";
+import { TokenRepository } from "@src/repositories/TokenRepository";
+import { UserRepository } from "@src/repositories/UserRepository";
+import { TokenService } from "@src/services/TokenService";
+import { CookieService } from "@src/services/CookieService";
 
+/**
+ * Contrôleur gérant l'authentification.
+ */
 export class AuthController extends Controller {
   /**
    * Inscription d'un nouvel utilisateur
    *
-   * Réponses possibles :
-   * - 400 si la requête est invalide
-   * - 409 si un utilisateur existe déjà avec cet email
-   * - 500 si une erreur survient lors de la création de l’utilisateur ou du token
-   * - 201 avec le token si tout est correct
+   * • Reçoit un corps déjà validé par le middleware
+   * • Vérifie l'unicité de l'email
+   * • Hash le mot de passe et crée l'utilisateur
+   * • Signe un JWT de rafraîchissement et crée un enregistrement de token
+   * • Dépose le JWT brut en cookie httpOnly
+   *
+   * Réponses envoyées par cette méthode : 409 500 201
    */
   signUp = async () => {
-    // 1 Valider la requête d'inscription
-    const validate = AuthService.validateAuthRequest(this.request);
+    // 0.0 REQUEST : Récupérer les données du corps de requête validées par le middleware
+    const { email, password, pseudo } = this.request.body;
 
-    if (!validate.success) {
-      return this.response.status(400).json({ message: validate.message });
-    }
-
-    const { email, password } = validate.data;
-
+    // 1.1 USER : Vérifier s'il existe déjà un utilisateur avec cet email en base de données
     const userRepository = new UserRepository();
-
-    // 2 Vérifier s'il existe déjà un utilisateur avec cet email en base de données
     const existingUser = await userRepository.findByEmail(email);
 
     if (existingUser) {
@@ -37,64 +36,59 @@ export class AuthController extends Controller {
         .json({ message: "Utilisateur déjà existant" });
     }
 
-    // 3 Hasher le mot de passe, instancier l’utilisateur et l’enregistrer
+    // 1.2 USER : Hasher le mot de passe, instancier l’utilisateur et l’enregistrer
     const passwordHash = await argon2.hash(password);
-    const user = new User(email, passwordHash);
-
+    const user = new User(email, pseudo, passwordHash);
     const userId = await userRepository.create(user);
 
     if (!userId) {
       return this.response
-        .status(500)
-        .json({ message: "Une erreur est survenue" });
+        .status(400)
+        .json({ message: "Création de l’utilisateur impossible" });
     }
 
-    // 4 Créer le token et l’enregistrer
-    const tokenRepository = new TokenRepository();
+    // 2.1 TOKEN : Signer le jwt et créer une instance du token
+    const jwt = TokenService.signRefreshToken({
+      sub: String(userId),
+    });
+    const token = Token.create(userId, jwt);
 
-    const token = new Token(userId);
+    // 2.2 TOKEN : Enregistrer le token
+    const tokenRepository = new TokenRepository();
     const tokenId = await tokenRepository.create(token);
 
     if (!tokenId) {
       return this.response
-        .status(500)
-        .json({ message: "Une erreur est survenue" });
+        .status(400)
+        .json({ message: "Création du token impossible" });
     }
 
-    // 5 Attacher le cookie httpOnly contenant le token à la réponse
-    this.response.cookie("userToken", token.getToken(), {
-      httpOnly: true,
-    });
+    // 3 RESPONSE : Attacher le cookie contenant le jwt et répondre
+    CookieService.setRefreshCookie(this.response, jwt);
 
-    // 6 Répondre avec succès
     return this.response.status(201).json({
       message: "Inscription réussie",
-      token: token.getToken(),
+      data: user.serialize(),
     });
   };
 
   /**
    * Connexion d’un utilisateur existant
    *
-   * Réponses possibles :
-   * - 400 si la requête est invalide
-   * - 401 si l’email ou le mot de passe est incorrect
-   * - 500 si une erreur survient lors de la gestion du token
-   * - 200 avec le token si tout est correct
+   * • Reçoit un corps déjà validé par le middleware
+   * • Vérifie l'existence de l'utilisateur et le mot de passe
+   * • Récupère un éventuel token existant
+   * • Signe un nouveau JWT et remplace ou crée le token en base
+   * • Dépose le JWT brut en cookie httpOnly
+   *
+   * Réponses envoyées par cette méthode : 401 500 200
    */
   signIn = async () => {
-    // 1 Valider la requête de connexion
-    const validate = AuthService.validateAuthRequest(this.request);
+    // 0.0 REQUEST : Récupérer les données du corps de requête validées par le middleware
+    const { email, password } = this.request.body;
 
-    if (!validate.success) {
-      return this.response.status(400).json({ message: validate.message });
-    }
-
-    const { email, password } = validate.data;
-
+    // 1.1 USER : Vérifier si un utilisateur avec cet email existe en base de données
     const userRepository = new UserRepository();
-
-    // 2 Rechercher l’utilisateur par email
     const existingUser = await userRepository.findByEmail(email);
     const existingUserId = existingUser?.getId();
 
@@ -104,7 +98,7 @@ export class AuthController extends Controller {
         .json({ message: "Email ou mot de passe invalide" });
     }
 
-    // 3 Vérifier la concordance entre le mot de passe soumis et le hash enregistré
+    // 1.2 USER : Vérifier la concordance entre le mot de passe soumis et le hash enregistré
     const validPassword = await argon2.verify(
       existingUser.getPasswordHash(),
       password
@@ -116,63 +110,85 @@ export class AuthController extends Controller {
         .json({ message: "Email ou mot de passe invalide" });
     }
 
-    // 4 Récupérer le token existant de l’utilisateur en base de données
+    // 2.1 ROTATION TOKEN : Récupérer le token existant de l’utilisateur en base de données
     const tokenRepository = new TokenRepository();
-    let token = await tokenRepository.findByUserId(existingUserId);
+    const existingToken = await tokenRepository.findByUserId(existingUserId);
 
-    // 5 Créer et enregistrer un token si aucun n’est connu
-    if (!token) {
-      token = new Token(existingUserId);
-      const tokenId = await tokenRepository.create(token);
+    // 2.2 ROTATION TOKEN : Signer le nouveau jwt et créer une instance du token
+    const jwt = TokenService.signRefreshToken({
+      sub: String(existingUserId),
+    });
+    const freshToken = Token.create(existingUserId, jwt);
 
-      if (!tokenId) {
-        return this.response
-          .status(500)
-          .json({ message: "Une erreur est survenue" });
-      }
+    // 2.3 ROTATION TOKEN : Si un token existe, on le remplace, sinon on ajoute un nouveau
+    let replacingTokenId = null;
+
+    if (existingToken) {
+      replacingTokenId = await tokenRepository.replaceForUser(freshToken);
+    } else {
+      replacingTokenId = await tokenRepository.create(freshToken);
     }
 
-    // 6 Attacher le cookie httpOnly contenant le token à la réponse
-    this.response.cookie("userToken", token.getToken(), {
-      httpOnly: true,
-    });
+    if (!replacingTokenId) {
+      return this.response
+        .status(400)
+        .json({ message: "Impossible de créer ou remplacer le token" });
+    }
 
-    // 7 Répondre avec succès
+    // 3 RESPONSE : Attacher le cookie contenant le jwt et répondre
+    CookieService.setRefreshCookie(this.response, jwt);
+
     return this.response.status(200).json({
       message: "Connexion réussie",
-      token: token.getToken(),
+      data: existingUser.serialize(),
     });
   };
 
   /**
-   * Récupération des informations du profil à partir d’un token
+   * Déconnexion d’un utilisateur
    *
-   * Réponses possibles :
-   * - 401 si le token n’est pas fourni ou invalide
-   * - 403 si le token est inconnu en base
-   * - 404 si l’utilisateur lié au token est introuvable
-   * - 200 avec les données sérialisées de l’utilisateur si tout est correct
+   * • Utilise l'identifiant utilisateur fourni par le middleware d'authentification
+   * • Supprime le token associé en base
+   * • Nettoie les cookies côté client
+   *
+   * Réponses envoyées par cette méthode : 200
    */
-  profil = async () => {
-    // 1 Valider le token transmis dans la requête
-    const validate = AuthService.validateAuthToken(this.request);
-
-    if (!validate.success) {
-      return this.response.status(401).json({ message: validate.message });
-    }
+  logOut = async () => {
+    // 0.0 REQUEST : Récupérer l'id de l'utilisateur validé par le middleware
+    const userId = this.request.userId as number;
 
     const tokenRepository = new TokenRepository();
+    await tokenRepository.deleteByUserId(userId);
 
-    // 2 Vérifier la présence du token en base de données
-    let token = await tokenRepository.find(validate.data.token);
+    // 3 RESPONSE : Nettoyer les cookies et répondre
+    CookieService.clearAuthCookies(this.response);
 
-    if (!token) {
-      return this.response.status(403).json({ message: "Token non reconnu" });
-    }
+    return this.response.status(200).json({
+      message: "Déconnexion réussie",
+    });
+  };
 
-    // 3 Charger l’utilisateur associé au token
+  /**
+   * Mise à jour du mot de passe utilisateur
+   *
+   * • Utilise l'identifiant utilisateur fourni par le middleware d'authentification
+   * • Vérifie le mot de passe actuel
+   * • Hash le nouveau mot de passe puis met à jour l'utilisateur en base
+   * • Signe un nouveau JWT et remplace ou crée le token associé
+   * • Dépose le nouveau JWT brut en cookie httpOnly
+   *
+   * Réponses envoyées par cette méthode : 401 404 500 200
+   */
+  passwordUpdate = async () => {
+    // 0.0 REQUEST : Récupérer les données du corps de requête validées par le middleware
+    const { currentPassword, newPassword } = this.request.body; 
+
+    // 0.0 REQUEST : Récupérer l'id de l'utilisateur validé par le middleware
+    const userId = this.request.userId as number;
+
+    // 1.1 USER : Charger l’utilisateur
     const userRepository = new UserRepository();
-    const user = await userRepository.find(token.getUserId());
+    const user = await userRepository.find(userId);
 
     if (!user) {
       return this.response
@@ -180,10 +196,91 @@ export class AuthController extends Controller {
         .json({ message: "Utilisateur introuvable" });
     }
 
-    // 4 Répondre avec succès en renvoyant les données sérialisées
+    // 1.2 USER : Vérifier la concordance entre le mot de passe soumis et le hash enregistré
+    const validPassword = await argon2.verify(
+      user.getPasswordHash(),
+      currentPassword
+    );
+
+    if (!validPassword) {
+      return this.response
+        .status(401)
+        .json({ message: "Mot de passe actuel invalide" });
+    }
+
+    // 1.3 USER : Hasher le mot de passe puis mettre à jour le mot de passe de l'utilisateur
+    const newPasswordHash = await argon2.hash(newPassword);
+
+    const updatedUserId = await userRepository.updatePassword(
+      userId,
+      newPasswordHash
+    );
+
+    if (!updatedUserId) {
+      return this.response
+        .status(400)
+        .json({ message: "Impossible de mettre à jour le mot de passe" });
+    }
+
+    // 2.1 ROTATION TOKEN : Récupérer le token existant de l’utilisateur en base de données
+    const tokenRepository = new TokenRepository();
+    const existingToken = await tokenRepository.findByUserId(userId);
+
+    // 2.2 ROTATION TOKEN : Signer le nouveau jwt et créer une instance du token
+    const jwt = TokenService.signRefreshToken({
+      sub: String(userId),
+    });
+    const freshToken = Token.create(userId, jwt);
+
+    // 2.3 ROTATION TOKEN : Si un token existe, on le remplace, sinon on ajoute un nouveau
+    let replacingTokenId = null;
+
+    if (existingToken) {
+      replacingTokenId = await tokenRepository.replaceForUser(freshToken);
+    } else {
+      replacingTokenId = await tokenRepository.create(freshToken);
+    }
+
+    if (!replacingTokenId) {
+      return this.response
+        .status(400)
+        .json({ message: "Impossible de mettre à jour le mot de passe" });
+    }
+
+    // 3 RESPONSE : Attacher le cookie contenant le jwt et répondre
+    CookieService.setRefreshCookie(this.response, jwt);
+
+    return this.response.status(200).json({
+      message: "Mot de passe mis à jour",
+    });
+  };
+
+  /**
+   * Récupération des informations de profil
+   *
+   * • Utilise l'identifiant utilisateur fourni par le middleware d'authentification
+   * • Charge l'utilisateur et renvoie les données sérialisées
+   *
+   * Réponses envoyées par cette méthode : 404 200
+   */
+  profile = async () => {
+    // 0.0 REQUEST : Récupérer l'id de l'utilisateur validé par le middleware
+    const userId = this.request.userId as number;
+
+    // 1.1 USER : Charger l’utilisateur
+    const userRepository = new UserRepository();
+    const user = await userRepository.find(userId);
+
+    if (!user) {
+      return this.response
+        .status(404)
+        .json({ message: "Utilisateur introuvable" });
+    }
+
+    // 3 RESPONSE : Répondre avec succès en renvoyant les données sérialisées
     this.response.json({
       message: "Token valide",
-      data: JSON.stringify(user.serialize()),
+      data: user.serialize(),
     });
   };
 }

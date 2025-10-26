@@ -1,27 +1,33 @@
-import { useFetcher } from "../core/useFetcher";
-import type { Player, PlayersResponse } from "../types/Types";
+import { useEffect, useState } from "react";
 
 export const Homepage = () => {
-  const { data, isLoading, isError, errorMsg } =
-    useFetcher<PlayersResponse>("/players");
+  const [envName, setEnvName] = useState<string>();
 
-  if (isLoading) return <p>Chargement...</p>;
-  if (isError) return <p>Erreur : {errorMsg}</p>;
-  if (!data) return <p>Aucune donnée trouvée.</p>;
+  useEffect(() => {
+    const rawEnvName = import.meta.env.MODE;
 
-  const players: Player[] = data ? JSON.parse(data.players) : [];
+    switch (rawEnvName) {
+      case "dev":
+        setEnvName("développement 🔧");
+        break;
+      case "test":
+        setEnvName("test 🪲");
+        break;
+      case "preprod":
+        setEnvName("pré-production 🔍");
+        break;
+      case "prod":
+        setEnvName("production 🚀");
+        break;
+      default:
+        setEnvName("inconnu 🤯");
+        break;
+    }
+  }, [setEnvName]);
 
   return (
     <main>
-      <h1>Liste des joueurs</h1>
-      <ul>
-        {players.map((player) => (
-          <li key={player.id}>
-            <strong>{player.nickname}</strong> — {player.full_name} (
-            {player.country})
-          </li>
-        ))}
-      </ul>
+      <h2>Bienvenue sur l'environnement de {envName}</h2>
     </main>
   );
 };

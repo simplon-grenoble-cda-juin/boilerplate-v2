@@ -1,15 +1,17 @@
 import { Pool } from "pg";
-import dotenv from "dotenv";
 
 export class Database {
+  // Instance unique du pool de connexions
   private static pool: Pool;
 
+  // Un constructeur privé = un singleton
+  private constructor() {}
+
+  /**
+   * Retourne le pool de connexions PostgreSQL (singleton)
+   */
   static getPool(): Pool {
     if (!Database.pool) {
-      const envFile = `.env.${process.env.NODE_ENV || "dev"}`;
-
-      dotenv.config({ path: envFile });
-
       Database.pool = new Pool({
         user: process.env.PGUSER,
         password: process.env.PGPASSWORD,
