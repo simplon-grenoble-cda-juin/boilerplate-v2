@@ -6,8 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "NODE_ENV=dev tsx watch index.ts",
-    "start": "NODE_ENV=production node dist/server.cjs",
     "test": "NODE_ENV=test tsx watch index.ts",
+    "preprod": "NODE_ENV=preprod tsx watch index.ts",
+    "start": "NODE_ENV=production node dist/index.js",
+    "build": "tsc -p tsconfig.json",
     "test:start": "vitest",
     "db:reset": "node scripts/db_reset.js",
     "db:populate": "node scripts/db_populate.js"

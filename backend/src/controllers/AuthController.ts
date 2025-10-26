@@ -181,7 +181,7 @@ export class AuthController extends Controller {
    */
   passwordUpdate = async () => {
     // 0.0 REQUEST : Récupérer les données du corps de requête validées par le middleware
-    const { currentPassword, newPassword } = this.request.body;
+    const { currentPassword, newPassword } = this.request.body; 
 
     // 0.0 REQUEST : Récupérer l'id de l'utilisateur validé par le middleware
     const userId = this.request.userId as number;
