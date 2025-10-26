@@ -1,22 +1,36 @@
 import { Router } from "express";
-import { AuthController } from "../controllers/AuthController";
+import { requireAuth } from "@src/middlewares/requireAuth";
+import { validateRequest } from "@src/middlewares/validateRequest";
+import { AuthController } from "@src/controllers/AuthController";
 
 export const authRouter = Router();
 
-// Signup endpoint 
-authRouter.post("/signup", (req, res) => {
-  const controller = new AuthController(req, res);
-  controller.signUp();
+// Signup endpoint
+authRouter.post("/signup", validateRequest, async (req, res) => {
+  await new AuthController(req, res).signUp();
 });
 
 // Signin endpoint
-authRouter.post("/signin", (req, res) => {
-  const controller = new AuthController(req, res);
-  controller.signIn();
+authRouter.post("/signin", validateRequest, async (req, res) => {
+  await new AuthController(req, res).signIn();
 });
 
-// Profil endpoint
-authRouter.get("/me", (req, res) => {
-  const controller = new AuthController(req, res);
-  controller.profil();
+// Logout endpoint
+authRouter.get("/logout", requireAuth, async (req, res) => {
+  await new AuthController(req, res).logOut();
 });
+
+// Profile endpoint
+authRouter.get("/profile", requireAuth, async (req, res) => {
+  await new AuthController(req, res).profile();
+});
+
+// Password update endpoint
+authRouter.patch(
+  "/password-update",
+  validateRequest,
+  requireAuth,
+  async (req, res) => {
+    await new AuthController(req, res).passwordUpdate();
+  }
+);
