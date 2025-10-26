@@ -1,17 +1,33 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import dotenv from "dotenv";
+import readline from "node:readline";
 
-const envFile = `.env.${process.env.NODE_ENV || "dev"}`;
-dotenv.config({ path: envFile });
+const ask = (question) => {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim() || "dev");
+    });
+  });
+};
 
 const run = async () => {
+  const user = await ask("Nom de l'utilisateur PG : ");
+  const pswd = await ask("Mot de passe de l'utilisateur PG : ");
+  const host = await ask("Host du serveur de base de données PG : ");
+  const name = await ask("Nom de la base de données : ");
+
   const client = new Client({
-    user: process.env.PGUSER,
-    password: process.env.PGPASSWORD,
-    host: process.env.PGHOST,
-    database: process.env.PGDATABASE,
+    user: user,
+    password: pswd,
+    host: host,
+    database: name,
   });
 
   const seedSQL = fs.readFileSync(
@@ -23,8 +39,7 @@ const run = async () => {
 
   try {
     await client.query(seedSQL);
-
-    console.log(`Base de données de ${process.env.NODE_ENV || "dev"} peuplée`);
+    console.log(`Base de données ${name} peuplée`);
   } finally {
     await client.end();
   }

@@ -17,10 +17,28 @@ import type { CorsOptions } from "cors";
  * - le lancement du serveur sur le port défini
  */
 
-// Chargement des variables d’environnement
-// Charge automatiquement le fichier `.env.dev`, `.env.test` ou `.env.prod` selon la valeur de NODE_ENV
-const envFile = `.env.${process.env.NODE_ENV || "dev"}`;
-dotenv.config({ path: envFile });
+const env = process.env.NODE_ENV;
+let envName: string;
+
+switch (env) {
+  case "dev":
+    envName = "développement 🔧";
+    break;
+  case "test":
+    envName = "test 🪲";
+    break;
+  case "preprod":
+    envName = "pré-production 🔍";
+    break;
+  case "prod":
+    envName = "production 🚀";
+    break;
+  default:
+    envName = "inconnu 🤯";
+    break;
+}
+
+console.log(`Bienvenue sur l'environnement de  ${envName}`);
 
 // Initialisation d’Express
 const app = Express();
@@ -39,7 +57,7 @@ const cors: typeof import("cors") = require("cors");
 // Autorise uniquement les origines définies (ici le frontend local)
 // Active les cookies (credentials: true)
 const CORS_OPTIONS: CorsOptions = {
-  origin: ["http://localhost:5143"],
+  origin: ["http://localhost:5143", "http://195.15.204.225:5143"],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
