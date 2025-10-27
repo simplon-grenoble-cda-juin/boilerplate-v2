@@ -39,6 +39,8 @@ switch (env) {
 
 console.log(`Bienvenue sur l'environnement de  ${envName}`);
 
+console.log(process.env);
+
 // Initialisation d’Express
 const app = Express();
 const PORT = 3002;
@@ -56,11 +58,13 @@ const cors: typeof import("cors") = require("cors");
 // Autorise uniquement les origines définies (ici le frontend local)
 // Active les cookies (credentials: true)
 const CORS_OPTIONS: CorsOptions = {
-  origin: ["http://localhost:5143", "http://195.15.204.225:5143"],
+  origin: [process.env.CORS_ALLOWED ?? ""],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
+
+console.log(CORS_OPTIONS);
 
 // Application du middleware CORS
 app.use(cors(CORS_OPTIONS));

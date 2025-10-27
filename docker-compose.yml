@@ -31,6 +31,7 @@ services:
       - PGDATABASE=${POSTGRES_DB}
       - JWT_SECRET=${BACKEND_JWT_SECRET}
       - JWT_RT_TTL=${BACKEND_JWT_RT_TTL}
+      - CORS_ALLOWED=${BACKEND_CORS_ALLOWED}
     ports:
       - ${BACKEND_PORT}
     depends_on:
