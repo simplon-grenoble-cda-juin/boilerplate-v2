@@ -8,7 +8,7 @@
     "test": "vite --mode test",
     "preprod": "vite --mode preprod",
     "prod": "vite --mode prod",
-    "build": "tsc -b && vite build --mode prod",
+    "build": "vite build --mode prod --outDir dist",
     "lint": "eslint .",
     "preview": "vite preview"
   },
